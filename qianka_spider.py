@@ -21,6 +21,11 @@ class Task:
         pass
 
 
+class TaskDetail:
+    def __init__(self):
+        pass
+
+
 def get_timestamp():
     return int(time.time() * 1000)
 
@@ -49,7 +54,7 @@ def get_task_list():
             task_id = int(task['id'])
             status = int(task['status'])
             if status == 2:  # 进行中任务
-                return 2, [task]
+                return 2, task
             reward = float(task['reward'])
             if reward >= 5:  # 大于5元的基本都是注册任务，过滤掉
                 continue
@@ -71,6 +76,45 @@ def get_task_list():
         logger.info(u'查询任务异常：')
         logger.exception(e)
         return 1, u'查询任务异常'
+
+
+def get_task_detail(task=None):
+    try:
+        if task is None:
+            logger.info(u'任务为空，任务详情查询失败')
+            return None
+        conn = httplib.HTTPConnection('qianka.com')
+        url = 'https://qianka.com/s4/lite.subtask.detail?t=%d&task_id=%d' % (get_timestamp(), task.id)
+        conn.request(method='GET', url=url, headers=header)
+        response = conn.getresponse()
+        resp_str = response.read()
+        json_str = json.loads(resp_str)
+        err_code = json_str['err_code']
+        if err_code != 0:
+            logger.info(json_str['err_msg'])
+            return None
+        payload = json_str['payload']
+        task_id = payload['task_id']
+        app_name = payload['app_name']
+        app_keyword = payload['app_keyword']
+        scheme_url = payload['scheme_url']
+        callback_url = payload['callback_url']
+        expire_at = payload['expire_at']
+        task_status = payload['task_status']
+        tips = payload['tips']
+        detail = TaskDetail()
+        detail.task_id = task_id
+        detail.app_name = app_name
+        detail.app_keyword = app_keyword
+        detail.scheme_url = scheme_url
+        detail.callback_url = callback_url
+        detail.expire_at = expire_at
+        detail.task_status = task_status
+        detail.tips = tips
+        return detail
+    except Exception, e:
+        logger.exception(e)
+        return None
 
 
 def grab(task=None):
@@ -138,7 +182,11 @@ if __name__ == '__main__':
             time.sleep(randint)
             continue
         if search_status == 2:  # 有进行中任务，暂停5分钟
-            msg = u'您有进行中的任务，请及时处理！'
+            detail = get_task_detail(result)
+            if detail:
+                msg = u'您有进行中的任务，请及时处理！'
+            else:
+                msg = u'任务【' + detail.app_name + u'】正在进行中，请速完成！'
             logger.info(msg)
             qiye_wechat.send(msg=msg)
             logger.info(u'暂停5分钟...')

@@ -65,7 +65,7 @@ def get_access_token_from_wechat():
 
 def save_access_token(token='', expire_in=7200, status=1):
     current_time = int(time.time() * 1000)
-    conn = sqlite3.connect('test.db')
+    conn = sqlite3.connect('master.db')
     cursor = conn.cursor()
     update_sql = "UPDATE t_access_token set STATUS=0 WHERE STATUS=1;"
     cursor.execute(update_sql)
