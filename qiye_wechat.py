@@ -76,7 +76,6 @@ def save_access_token(token='', expire_in=7200, status=1):
     cursor.close()
     conn.close()
 
-
 def send(msg=''):
     access_token = get_access_token()
     body = {

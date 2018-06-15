@@ -16,12 +16,12 @@ header = {"Host": "qianka.com",
           "Connection": "keep-alive"}
 
 
-class Task:
+class Task(object):
     def __init__(self):
         pass
 
 
-class TaskDetail:
+class TaskDetail(object):
     def __init__(self):
         pass
 
@@ -53,20 +53,21 @@ def get_task_list():
         for task in tasks:
             task_id = int(task['id'])
             status = int(task['status'])
-            if status == 2:  # 进行中任务
-                return 2, task
             reward = float(task['reward'])
-            if reward >= 5:  # 大于5元的基本都是注册任务，过滤掉
-                continue
             zs_reward = float(task['zs_reward'])
             quality = int(task['qty'])
             appstore_cost = float(task['appstore_cost'])
             profit = reward + zs_reward - appstore_cost
+            if reward >= 5:
+                continue
             if quality > 0:
                 task_obj = Task()
                 task_obj.id = task_id
                 task_obj.quality = quality
                 task_obj.profit = profit
+                task_obj.status = status
+                if status == 2:  # 进行中任务
+                    return 2, task_obj
                 available_tasks.append(task_obj)
         task_list = []
         if len(available_tasks) > 0:
@@ -117,7 +118,7 @@ def get_task_detail(task=None):
         return None
 
 
-def grab(task=None):
+def grab_task(task=None):
     try:
         if task is None:
             logger.info(u'任务为空，抢任务失败')
@@ -141,34 +142,14 @@ def grab(task=None):
         logger.info(u'抢task_id=%d的任务出现异常: ' + unicode(repr(e)))
 
 
-def notify_dingding(msg=''):
-    notify_data = {
-        "token": "",
-        "title": u"任务提醒",
-        "server": "yangtao",
-        "context": msg,
-        "type": "markdown",
-        "category": "1"
-    }
-    try:
-        json_data = json.dumps(notify_data).encode()
-        notify_header = {"Host": "qa01.letzgo.com.cn", "Content-Type": "application/json"}
-        conn = httplib.HTTPSConnection('qa01.letzgo.com.cn')
-        conn.request(method='POST', url='https://qa01.letzgo.com.cn/ding_service/api/ding/forward',
-                     body=json_data, headers=notify_header)
-        response = conn.getresponse()
-        res = response.read()
-        logger.info(res)
-        return int(json.loads(res)["code"]) == 200
-    except Exception, e:
-        logger.info('notify ding ding failure: ' + unicode(repr(e)))
-        return
-
-
 if __name__ == '__main__':
     rounds = 1
     last_error_notify_time = 0
     while True:
+        hour = datetime.datetime.now().hour
+        if hour >= 23 or hour <= 7:
+            time.sleep(10 * 60)
+            continue
         logger.info(u'第%d次轮询开始...' % rounds)
         search_status, result = get_task_list()
         if search_status == 1:  # 出现错误
@@ -184,9 +165,9 @@ if __name__ == '__main__':
         if search_status == 2:  # 有进行中任务，暂停5分钟
             detail = get_task_detail(result)
             if detail:
-                msg = u'您有进行中的任务，请及时处理！'
-            else:
                 msg = u'任务【' + detail.app_name + u'】正在进行中，请速完成！'
+            else:
+                msg = u'您有进行中的任务，请及时处理！'
             logger.info(msg)
             qiye_wechat.send(msg=msg)
             logger.info(u'暂停5分钟...')
@@ -195,7 +176,7 @@ if __name__ == '__main__':
         for task in result:  # 有任务则抢
             if result.index(task) > 2:  # 只抢前三个，防止访问频率过高
                 break
-            grab(task)
+            grab_task(task)
             time.sleep(0.5)
         logger.info(u'第%d次轮询结束' % rounds)
         minute = datetime.datetime.now().minute
