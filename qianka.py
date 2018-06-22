@@ -148,7 +148,8 @@ class QiyeWechat(object):
         except Exception, e:
             self.logger.exception(e)
 
-    def send_news(self, title=u'消息通知', description=u'消息', pic_url='https://www.xhdkeji.com/static/imgage/sample.png'):
+    def send_news(self, title=u'消息通知', description=u'消息',
+                  pic_url='http://img.zcool.cn/community/01786557e4a6fa0000018c1bf080ca.png'):
         try:
             access_token = self.__get_access_token()
             body = {
@@ -162,7 +163,7 @@ class QiyeWechat(object):
                         {
                             "title": title,
                             "description": description,
-                            "url": "URL",
+                            "url": pic_url,
                             "picurl": pic_url,
                             "btntxt": u"查看更多"
                         }
@@ -185,7 +186,7 @@ class Dingding(object):
     """钉钉消息发送"""
 
     def __init__(self):
-        self.logger = Logger('QiyeWechat').logger
+        self.logger = Logger('Dingding').logger
 
     def send_msg(self, msg=''):
         try:
@@ -304,7 +305,7 @@ class QianKa(object):
             if task is None:
                 self.logger.info(u'任务为空，任务详情查询失败')
                 return None
-            conn = httplib.HTTPSConnection('qianka.com')
+            conn = httplib.HTTPSConnection(host='qianka.com', timeout=2)
             url = 'https://qianka.com/s4/lite.subtask.detail?t=%d&task_id=%d' % (DateUtil.get_timestamp(), task.id)
             conn.request(method='GET', url=url, headers=self.header)
             response = conn.getresponse()
@@ -343,7 +344,7 @@ class QianKa(object):
                 self.logger.info(u'任务为空，抢任务失败')
                 return
             self.logger.info(u'开始抢task_id=%d的任务...' % task.id)
-            conn = httplib.HTTPSConnection('qianka.com')
+            conn = httplib.HTTPSConnection(host='qianka.com', timeout=2)
             url = 'https://qianka.com/s4/lite.subtask.start?t=%d&task_id=%d&quality=%d' % (
                 DateUtil.get_timestamp(), task.id, task.quality)
             conn.request(method='GET', url=url, headers=self.header)
@@ -377,9 +378,10 @@ class QianKa(object):
             time_split = shield_time.split('-')
             start_time = int(time_split[0].replace(':', '').strip())
             end_time = int(time_split[1].replace(':', '').strip())
-            if now_time >= start_time or now_time <= end_time:
-                return True
-            return False
+            if end_time > start_time:  # 同一天
+                return start_time <= now_time <= end_time
+            else:  # 跨天
+                return now_time >= start_time or now_time <= end_time
         except Exception, e:
             self.logger.exception(e)
             return False
@@ -423,16 +425,14 @@ class QianKa(object):
             rebind_notify.clear()
             if search_status == 2:  # 有进行中任务，暂停5分钟
                 detail = self.__get_task_detail(result)
-                title = ''
-                description = ''
                 if detail:
                     left_time = int((detail.expire_at * 1000 - DateUtil.get_timestamp()) / 1000 / 60)
-                    msg = u'任务【' + detail.app_name + u'】正在进行中，将于%d分钟后过期，奖励总计%g元，请速完成！' % (left_time, result.profit)
                     title = u'任务【' + detail.app_name + u'】正在进行中，请速完成！'
-                    description = u'预计将于%d分钟后过期，奖励总计%g元' % (left_time, result.profit)
+                    description = u'奖励总计%g元，将于%d分钟后过期' % (result.profit, left_time)
                 else:
-                    msg = u'您有进行中的任务，请及时处理！'
-                self.logger.info(msg)
+                    title = u'您有进行中的任务，请速完成！'
+                    description = u'奖励总计%g元' % result.profit
+                self.logger.info(title + u'，' + description)
                 if in_process_notify.get('task_id') == result.id:  # 该任务已经通知过了，则只暂停15秒
                     notify_times = in_process_notify.get('notify_times')
                     last_notify_time = in_process_notify.get('last_notify_time')
@@ -440,20 +440,14 @@ class QianKa(object):
                     current_millis = DateUtil.get_timestamp()
                     is_notify = notify_times <= 4 and current_millis - last_notify_time > notify_duration
                     if is_notify:
-                        if detail:
-                            self.wechat.send_news(title=title, description=description, pic_url=result.icon)
-                        else:
-                            self.wechat.send_msg(msg=msg)
+                        self.wechat.send_news(title=title, description=description, pic_url=result.icon)
                         notify_times = notify_times + 1
                         in_process_notify['notify_times'] = notify_times
                         in_process_notify['last_notify_time'] = current_millis
                     self.logger.info(u'您有进行中的任务，暂停%d秒...' % 15)
                     time.sleep(15)
                 else:  # 第一次通知，第一次通知暂停5分钟
-                    if detail:
-                        self.wechat.send_news(title=title, description=description, pic_url=result.icon)
-                    else:
-                        self.wechat.send_msg(msg=msg)
+                    self.wechat.send_news(title=title, description=description, pic_url=result.icon)
                     self.logger.info(u'您有进行中的任务，暂停%d分钟...' % 4)
                     time.sleep(4 * 60)
                     in_process_notify['task_id'] = result.id
