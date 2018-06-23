@@ -100,7 +100,7 @@ class QiyeWechat(object):
     def __get_access_token_from_wechat(self):
         try:
             url = 'https://qyapi.weixin.qq.com/cgi-bin/gettoken?corpid=%s&corpsecret=%s' % (self.corp_id, self.secret)
-            conn = httplib.HTTPSConnection("qyapi.weixin.qq.com")
+            conn = httplib.HTTPSConnection("qyapi.weixin.qq.com", timeout=5)
             conn.request(method='GET', url=url, headers=self.header)
             response = conn.getresponse()
             resp_str = response.read()
@@ -139,7 +139,7 @@ class QiyeWechat(object):
             }
             json_body = json.dumps(body).encode('utf-8')
             url = 'https://qyapi.weixin.qq.com/cgi-bin/message/send?access_token=%s' % access_token
-            conn = httplib.HTTPSConnection("qyapi.weixin.qq.com")
+            conn = httplib.HTTPSConnection("qyapi.weixin.qq.com", timeout=5)
             conn.request(method='POST', url=url, body=json_body, headers=self.header)
             response = conn.getresponse()
             resp_str = response.read()
@@ -172,7 +172,7 @@ class QiyeWechat(object):
             }
             json_body = json.dumps(body).encode('utf-8')
             url = 'https://qyapi.weixin.qq.com/cgi-bin/message/send?access_token=%s' % access_token
-            conn = httplib.HTTPSConnection("qyapi.weixin.qq.com")
+            conn = httplib.HTTPSConnection("qyapi.weixin.qq.com", timeout=5)
             conn.request(method='POST', url=url, body=json_body, headers=self.header)
             response = conn.getresponse()
             resp_str = response.read()
@@ -200,7 +200,7 @@ class Dingding(object):
             }
             json_data = json.dumps(notify_data).encode()
             notify_header = {"Host": "qa01.letzgo.com.cn", "Content-Type": "application/json"}
-            conn = httplib.HTTPSConnection('qa01.letzgo.com.cn')
+            conn = httplib.HTTPSConnection('qa01.letzgo.com.cn', timeout=5)
             conn.request(method='POST', url='https://qa01.letzgo.com.cn/ding_service/api/ding/forward',
                          body=json_data, headers=notify_header)
             response = conn.getresponse()
@@ -252,7 +252,7 @@ class QianKa(object):
     def __get_task_list(self):
         """0正常返回，1异常返回，2有进行中任务，3访问频率过高"""
         try:
-            conn = httplib.HTTPSConnection(host='qianka.com', timeout=10)
+            conn = httplib.HTTPSConnection(host='qianka.com', timeout=20)
             url = 'https://qianka.com/s4/lite.subtask.list?t=%d' % DateUtil.get_timestamp()
             conn.request(method='GET', url=url, headers=self.header)
             response = conn.getresponse()
@@ -344,7 +344,7 @@ class QianKa(object):
                 self.logger.info(u'任务为空，抢任务失败')
                 return
             self.logger.info(u'开始抢task_id=%d的任务...' % task.id)
-            conn = httplib.HTTPSConnection(host='qianka.com', timeout=10)
+            conn = httplib.HTTPSConnection(host='qianka.com', timeout=20)
             url = 'https://qianka.com/s4/lite.subtask.start?t=%d&task_id=%d&quality=%d' % (
                 DateUtil.get_timestamp(), task.id, task.quality)
             conn.request(method='GET', url=url, headers=self.header)
