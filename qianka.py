@@ -252,7 +252,7 @@ class QianKa(object):
     def __get_task_list(self):
         """0正常返回，1异常返回，2有进行中任务，3访问频率过高"""
         try:
-            conn = httplib.HTTPSConnection(host='qianka.com', timeout=20)
+            conn = httplib.HTTPSConnection(host='qianka.com', timeout=30)
             url = 'https://qianka.com/s4/lite.subtask.list?t=%d' % DateUtil.get_timestamp()
             conn.request(method='GET', url=url, headers=self.header)
             response = conn.getresponse()
@@ -305,7 +305,7 @@ class QianKa(object):
             if task is None:
                 self.logger.info(u'任务为空，任务详情查询失败')
                 return None
-            conn = httplib.HTTPSConnection(host='qianka.com', timeout=10)
+            conn = httplib.HTTPSConnection(host='qianka.com', timeout=5)
             url = 'https://qianka.com/s4/lite.subtask.detail?t=%d&task_id=%d' % (DateUtil.get_timestamp(), task.id)
             conn.request(method='GET', url=url, headers=self.header)
             response = conn.getresponse()
@@ -344,7 +344,7 @@ class QianKa(object):
                 self.logger.info(u'任务为空，抢任务失败')
                 return
             self.logger.info(u'开始抢task_id=%d的任务...' % task.id)
-            conn = httplib.HTTPSConnection(host='qianka.com', timeout=20)
+            conn = httplib.HTTPSConnection(host='qianka.com', timeout=30)
             url = 'https://qianka.com/s4/lite.subtask.start?t=%d&task_id=%d&quality=%d' % (
                 DateUtil.get_timestamp(), task.id, task.quality)
             conn.request(method='GET', url=url, headers=self.header)
