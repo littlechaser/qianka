@@ -269,14 +269,18 @@ class QianKa(object):
             tasks = payload['tasks']
             available_tasks = []
             for task in tasks:
-                task_id = int(task['id'])
-                status = int(task['status'])
-                reward = float(task['reward'])
-                zs_reward = float(task['zs_reward'])
-                quality = int(task['qty'])
-                appstore_cost = float(task['appstore_cost'])
-                icon = task['icon']
-                profit = reward - appstore_cost
+                try:
+                    task_id = int(task['id'])
+                    status = int(task['status'])
+                    reward = float(task['reward'])
+                    zs_reward = float(task['zs_reward'])
+                    quality = int(task['qty'])
+                    appstore_cost = float(task['appstore_cost'])
+                    icon = task['icon']
+                    profit = reward - appstore_cost
+                except Exception, e:
+                    self.logger.exception(e)
+                    continue
                 if reward >= 5:
                     continue
                 task = Task()
