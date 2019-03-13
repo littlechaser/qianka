@@ -358,12 +358,16 @@ class QianKa(object):
             json_str = json.loads(resp_str)
             err_code = json_str['err_code']
             if err_code != 0:
-                self.logger.info(u'抢task_id=%d的任务失败: %s' % (task.id, json_str['err_msg']))
-                return
+                err_msg = json_str['err_msg']
+                self.logger.info(u'抢task_id=%d的任务失败: %s' % (task.id, err_msg))
+                if u'未安装证书' in err_msg:
+                    return 'not_install_credentials'
+                else:
+                    return
             payload = json_str['payload']
             self.logger.info(u'抢task_id=%d的任务结果: %s' % (task.id, payload['message']))
         except Exception, e:
-            self.logger.info(u'抢task_id=%d的任务出现异常: ')
+            self.logger.info(u'抢task_id=%d的任务出现异常: ' % task.id)
             self.logger.exception(e)
 
     def __is_shield_time(self):
@@ -394,6 +398,7 @@ class QianKa(object):
         rounds = 1
         rebind_notify = {}  # 重新绑定通知数据
         in_process_notify = {}  # 进行中任务通知数据
+        credentials_notify = {}  # 重新安装证书通知数据
         while True:
             if self.__is_shield_time():
                 time.sleep(60)
@@ -462,7 +467,22 @@ class QianKa(object):
             for task in result:  # 有任务则抢
                 if result.index(task) > 2:  # 只抢前三个，防止访问频率过高
                     break
-                self.__grab_task(task)
+                grab_res = self.__grab_task(task)
+                if grab_res is not None and grab_res == 'not_install_credentials':
+                    current_millis = DateUtil.get_timestamp()
+                    if credentials_notify.get('notify_times'):
+                        notify_times = credentials_notify.get('notify_times')
+                        last_notify_time = credentials_notify.get('last_notify_time')
+                        if notify_times < 3 and current_millis - last_notify_time > 3 * 60 * 1000:
+                            self.wechat.send_msg(u'请重新安装证书')
+                            credentials_notify['notify_times'] = notify_times + 1
+                            credentials_notify['last_notify_time'] = current_millis
+                    else:
+                        self.wechat.send_msg(u'请重新安装证书')
+                        credentials_notify['notify_times'] = 1
+                        credentials_notify['last_notify_time'] = current_millis
+                else:
+                    credentials_notify.clear()
                 time.sleep(1)
             self.logger.info(u'第%d次轮询结束' % rounds)
             minute = datetime.now().minute
